@@ -127,13 +127,19 @@
   (if (= "d4c3b2a1" (apply str (take 8 string)))
     true false))
 
-(defrecord field [string size hex?])
 (defrecord pcap-header [magic-number version timezone zero snaplength link-type])
+(defrecord pcap-record [ts_sec ts_usec incl_len orig_len])
 
-(defn get-packet-header
-  ([string] (apply ->pcap-header (get-packet-header 6 [] string)))
+(defn read-packet-header
+  ([string] [(apply ->pcap-header (get-packet-header 6 [] string)) (drop 48 string)])
   ([iter results string] (if (= iter 0) results
-                           (recur (- iter 1) (conj results
-                                                (->field (apply .str (take 8 string)) 8 true))
+                           (recur (- iter 1)
+                                  (conj results (apply str (take 8 string)))
                                   (drop 8 string)))))
 
+(defn read-packet-record
+  ([string] [(apply ->pcap-record (get-packet-header 4 [] string)) (drop 32 string)])
+  ([iter results string] (if (= iter 0) results
+                           (recur (- iter 1)
+                                  (conj results (apply str (take 8 string)))
+                                  (drop 8 string)))))
