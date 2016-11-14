@@ -18,7 +18,7 @@
 (defn convert-to-hex [& values]
   "Takes a series of [data byte-size & hex?] and converts it to a hex-string
   If the third value passed in is true, the data will be passed as is, otherwise it converts it to hex first"
-  (str/replace (apply str 
+  (str/replace (apply str
          (map (fn [[data length & hex?]]
                 (cond hex? data
                       :else (format (str "%" length "x") data))) values)) #" " "0"))
@@ -113,11 +113,14 @@
                   [data 0 true]))                    ;; TODO: No checksum validation yet. Will add later
 
 
+;;(print-hexstring filename (global-header :ethernet))
 
+;;----------------------Reading an existing pcap
+(defn read-pcap [filename
+  "Reads a file and returns it as a hex-string"
+  (let [bytes (java.nio.file.Files/readAllBytes (.toPath (java.io.File. filename)))]
+    (apply str (map (fn [byte]
+                      (let [b (int byte)]
+                            (format "%x" (if (< b 0) (bit-and b 0xff) b)))) bytes))))
 
-
-
-
-
-
-(print-hexstring filename (global-header :ethernet))
+;; (java.nio.file.Files/readAllBytes (.toPath (java.io.File. filename)))
