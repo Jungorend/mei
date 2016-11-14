@@ -116,11 +116,24 @@
 ;;(print-hexstring filename (global-header :ethernet))
 
 ;;----------------------Reading an existing pcap
-(defn read-pcap [filename
+(defn read-pcap [filename]
   "Reads a file and returns it as a hex-string"
   (let [bytes (java.nio.file.Files/readAllBytes (.toPath (java.io.File. filename)))]
     (apply str (map (fn [byte]
                       (let [b (int byte)]
                             (format "%x" (if (< b 0) (bit-and b 0xff) b)))) bytes))))
 
-;; (java.nio.file.Files/readAllBytes (.toPath (java.io.File. filename)))
+(defn little-endian? [string]
+  (if (= "d4c3b2a1" (apply str (take 8 string)))
+    true false))
+
+(defrecord field [string size hex?])
+(defrecord pcap-header [magic-number version timezone zero snaplength link-type])
+
+(defn get-packet-header
+  ([string] (apply ->pcap-header (get-packet-header 6 [] string)))
+  ([iter results string] (if (= iter 0) results
+                           (recur (- iter 1) (conj results
+                                                (->field (apply .str (take 8 string)) 8 true))
+                                  (drop 8 string)))))
+
