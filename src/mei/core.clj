@@ -151,4 +151,4 @@
 
 (defn reverse-endian-structure [structure]
   (reduce (fn [results [k v]]
-            (assoc results k (reverse-endian (get structure k)))) {} structure))
+            (assoc results k (reverse-endian (get structure k)))) structure structure))
