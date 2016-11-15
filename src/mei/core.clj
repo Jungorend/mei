@@ -129,7 +129,7 @@
 
 (defrecord pcap-header [magic-number version timezone zero snaplength link-type])
 (defrecord pcap-record [ts_sec ts_usec incl_len orig_len])
-(defrecord ethernet    [mac-dst mac-src header-8021q ethertype] ;; Everything after the ether-type is unnecessary to know
+(defrecord ethernet    [mac-dst mac-src header-8021q ethertype]) ;; Everything after the ether-type is unnecessary to know
 
 (defn read-packet-header
   "From a packet capture returns the global header at the beginning of a libpcap file,
@@ -165,42 +165,28 @@
                   (Integer/parseInt (:orig_len (if little? (reverse-endian packet-record) packet-record)) 16))]
     [(apply str (take length string)) (drop length string)]))
 
+(defn pull-data [data structure fields]
+  "Field should be [key size]
+  it will update all the provided keys in the structure with the
+  size amount of data. size can be a function of the remaining data."
+  (if (empty? fields)
+    [structure data]
+    (let [[k size] (first fields)
+          length (if (fn? size) (size data) size)]
+      (recur (drop length data)
+             (assoc structure k (apply str (take length data)))
+             (rest fields)))))
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+(defn read-ethernet [string]
+  "Takes a string and returns an ethernet record and the remainder of the data"
+  (pull-data string (->ethernet nil nil nil nil)
+             [[:mac-dst 12]
+              [:mac-src 12]
+              [:header-8021q (fn [a] (let [field (apply str (take 4 a))]
+                                      (cond (= "8100" field) 8
+                                            (= "9100" field) 16
+                                            :else 0)))]
+              [:ethertype 4]]))
 
 
 
