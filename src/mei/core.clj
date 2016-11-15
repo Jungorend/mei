@@ -127,48 +127,19 @@
   (if (= "d4c3b2a1" (apply str (take 8 string)))   ;; Not yet used
     true false))
 
-(defrecord pcap-header [magic-number version timezone zero snaplength link-type])
-(defrecord pcap-record [ts_sec ts_usec incl_len orig_len])
-(defrecord ethernet    [mac-dst mac-src header-8021q ethertype]) ;; Everything after the ether-type is unnecessary to know
-
-(defn read-packet-header
-  "From a packet capture returns the global header at the beginning of a libpcap file,
-  as a pcap-header, and the remainder of the string in a vector."
-  ([string] [(apply ->pcap-header (read-packet-header 6 [] string)) (drop 48 string)])
-  ([iter results string] (if (= iter 0) results
-                           (recur (- iter 1)
-                                  (conj results (apply str (take 8 string)))
-                                  (drop 8 string)))))
-
-(defn read-packet-record
-  "From a packet capture without a global header, returns a pcap-record and the remainder of the string
-  as a vector."
-  ([string] [(apply ->pcap-record (read-packet-header 4 [] string)) (drop 32 string)])
-  ([iter results string] (if (= iter 0) results
-                           (recur (- iter 1)
-                                  (conj results (apply str (take 8 string)))
-                                  (drop 8 string)))))
-
-(defn reverse-endian [structure]
+(defn reverse-endian
   "Returns the structure with all the values having reverse endian"
+  [structure]
   (let [re (fn [string]
              (clojure.string/join (map (partial clojure.string/join) (reverse (partition 2 string)))))]
     (reduce (fn [results [k v]]
               (assoc results k (re (get structure k)))) structure structure)))
 
-(defn packet-data [string little?]
-  "Takes in a string beginning at a packet data chunk, and a boolean
-  telling the function whether the traffic is little endian or not.
-  Returns the next packet data chunk and the remaining string from a chunk"
-  (let [[packet-record string] (read-packet-record string)
-        length (* 2                                                     ;; Two characters per byte
-                  (Integer/parseInt (:orig_len (if little? (reverse-endian packet-record) packet-record)) 16))]
-    [(apply str (take length string)) (drop length string)]))
-
-(defn pull-data [data structure fields]
+(defn pull-data
   "Field should be [key size]
   it will update all the provided keys in the structure with the
   size amount of data. size can be a function of the remaining data."
+  [data structure fields]
   (if (empty? fields)
     [structure data]
     (let [[k size] (first fields)
@@ -177,8 +148,36 @@
              (assoc structure k (apply str (take length data)))
              (rest fields)))))
 
-(defn read-ethernet [string]
+(defrecord pcap-header [magic-number version timezone zero snaplength link-type])
+(defrecord pcap-record [ts_sec ts_usec incl_len orig_len])
+(defrecord ethernet    [mac-dst mac-src header-8021q ethertype]) ;; Everything after the ether-type is unnecessary to know
+
+
+(defn read-global-header
+  "From a packet capture, returns the global header at the beginning of a libpcap file
+  as a pcap-header, and the remainder of the string in a vector."
+  [string]
+  (pull-data string (->pcap-header nil nil nil nil nil nil)
+             [[:magic-number 8]
+              [:version 8]
+              [:timezone 8]
+              [:zero 8]
+              [:snaplength 8]
+              [:link-type 8]]))
+
+(defn read-record
+  "From a packet capture without a global header, returns a pcap-record and the remainder of the
+  data in a vector."
+  [string]
+  (pull-data string (->pcap-record nil nil nil nil)
+             [[:ts_sec 8]
+              [:ts_usec 8]
+              [:incl_len 8]
+              [:orig_len 8]]))
+
+(defn read-ethernet
   "Takes a string and returns an ethernet record and the remainder of the data"
+  [string]
   (pull-data string (->ethernet nil nil nil nil)
              [[:mac-dst 12]
               [:mac-src 12]
@@ -187,6 +186,20 @@
                                             (= "9100" field) 16
                                             :else 0)))]
               [:ethertype 4]]))
+
+
+(defn packet-data
+  "Takes in a string beginning at a packet data chunk, and a boolean
+  telling the function whether the traffic is little endian or not.
+  Returns the next packet data chunk and the remaining string from a chunk"
+  [string little?]
+  (let [[packet-record string] (read-record string)
+        length (* 2                                                     ;; Two characters per byte
+                  (Integer/parseInt (:orig_len (if little? (reverse-endian packet-record) packet-record)) 16))]
+    [(apply str (take length string)) (drop length string)]))
+
+
+
 
 
 
