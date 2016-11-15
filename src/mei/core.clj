@@ -153,6 +153,8 @@
 (defrecord ethernet    [mac-dst mac-src header-8021q ethertype]) ;; Everything after the ether-type is unnecessary to know
 (defrecord ipv4        [version ihl dscp ecn total-length identification flags fragment-offset ttl protocol header-checksum
                         source-ip destination-ip options])
+(defrecord tcp         [source-port destination-port sequence-number acknowledgement-number data-offset flags window-size
+                        checksum urgent-pointer options])
 
 
 (defn read-global-header
@@ -208,7 +210,18 @@
               [:identification 4] [:flags 4] ;; flags includes fragment offset
               [:ttl 2] [:protocol 2] [:header-checksum 4]
               [:source-ip 8]
-              [:destination-ip 8]])) ;;;note, not using options yet
+              [:destination-ip 8]])) ;;;note, not using options yet, assuming they won't come up
+
+(defn read-tcp
+  "Takes in a string and extracts the tcp header. Returns the remainder in a vector."
+  [string]
+  (pull-data string (apply (partial ->tcp) (repeat 10 'nil))
+             [[:source-port 4] [:destination-port 4]
+              [:sequence-number 8]
+              [:acknowledgement-number 16]
+              [:data-offset 1] [:flags 3] [:window-size 4]
+              [:checksum 4] [:urgent-pointer 4]])) ;; Don't care about options right now
+
 
 
 
