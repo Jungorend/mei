@@ -151,6 +151,8 @@
 (defrecord pcap-header [magic-number version timezone zero snaplength link-type])
 (defrecord pcap-record [ts_sec ts_usec incl_len orig_len])
 (defrecord ethernet    [mac-dst mac-src header-8021q ethertype]) ;; Everything after the ether-type is unnecessary to know
+(defrecord ipv4        [version ihl dscp ecn total-length identification flags fragment-offset ttl protocol header-checksum
+                        source-ip destination-ip options])
 
 
 (defn read-global-header
@@ -187,7 +189,6 @@
                                             :else 0)))]
               [:ethertype 4]]))
 
-
 (defn packet-data
   "Takes in a string beginning at a packet data chunk, and a boolean
   telling the function whether the traffic is little endian or not.
@@ -199,8 +200,52 @@
     [(apply str (take length string)) (drop length string)]))
 
 
+(defn read-ipv4
+  "Takes in a string and extracts the ipv4 header, then returns the remainder in a vector"
+  [string]
+  (pull-data string (apply (partial ->ipv4) (repeat 14 'nil))
+             [[:version 1] [:ihl 1] [:dscp 2] [:total-length 4]
+              [:identification 4] [:flags 4] ;; flags includes fragment offset
+              [:ttl 2] [:protocol 2] [:header-checksum 4]
+              [:source-ip 8]
+              [:destination-ip 8]])) ;;;note, not using options yet
 
 
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+;; OoO read-pcap -> read-global-header -> packet-data -> read-ethernet -> (potential check) -> read-ipv4
