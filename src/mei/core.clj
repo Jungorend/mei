@@ -119,9 +119,9 @@
 (defn read-pcap [filename]
   "Reads a file and returns it as a hex-string"
   (let [bytes (java.nio.file.Files/readAllBytes (.toPath (java.io.File. filename)))]
-    (apply str (map (fn [byte]
-                      (let [b (int byte)]
-                            (format "%x" (if (< b 0) (bit-and b 0xff) b)))) bytes))))
+    (clojure.string/replace (apply str (map (fn [byte]
+                                              (let [b (int byte)]
+                                                (format "%2x" (if (< b 0) (bit-and b 0xff) b)))) bytes)) " " "0")))
 
 (defn little-endian? [string]
   (if (= "d4c3b2a1" (apply str (take 8 string)))
@@ -131,15 +131,24 @@
 (defrecord pcap-record [ts_sec ts_usec incl_len orig_len])
 
 (defn read-packet-header
-  ([string] [(apply ->pcap-header (get-packet-header 6 [] string)) (drop 48 string)])
+  ([string] [(apply ->pcap-header (read-packet-header 6 [] string)) (drop 48 string)])
   ([iter results string] (if (= iter 0) results
                            (recur (- iter 1)
                                   (conj results (apply str (take 8 string)))
                                   (drop 8 string)))))
 
 (defn read-packet-record
-  ([string] [(apply ->pcap-record (get-packet-header 4 [] string)) (drop 32 string)])
+  ([string] [(apply ->pcap-record (read-packet-header 4 [] string)) (drop 32 string)])
   ([iter results string] (if (= iter 0) results
                            (recur (- iter 1)
                                   (conj results (apply str (take 8 string)))
                                   (drop 8 string)))))
+
+(defn reverse-endian
+  "Returns the opposite endian on a string"
+  [string]
+  (clojure.string/join (map (partial clojure.string/join) (reverse (partition 2 string)))))
+
+(defn reverse-endian-structure [structure]
+  (reduce (fn [results [k v]]
+            (assoc results k (reverse-endian (get structure k)))) {} structure))
