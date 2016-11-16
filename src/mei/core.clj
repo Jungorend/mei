@@ -273,10 +273,7 @@
 (defn add-tcp-handshake [filename]
   (let [[info headerless-data] (gather-data filename) ;; headerless data can be appended to the handshake
         output (str "new-" filename)]
-    (print-hexstring output (record-to-string (:global-header info)))
-    (print-hexstring output (packet-to-string (create-new-packet info)))
-    ))
-
+    (print-hexstring output (str (record-to-string (:global-header info)) (packet-to-string (create-new-packet info))))))
 
 
 
