@@ -222,7 +222,25 @@
               [:data-offset 1] [:flags 3] [:window-size 4]
               [:checksum 4] [:urgent-pointer 4]])) ;; Don't care about options right now
 
+(defn gather-data [filename]
+  (let [packet (read-pcap filename)
+        [global-header tmp1] (read-global-header packet)
+        [single-packet tmp2] (packet-data tmp1 (little-endian? global-header))
+        [record-header tmp3] (read-record single-packet)
+        [ethernet-header tmp4] (read-ethernet tmp3)
+        [ip-header tmp5] (read-ipv4 tmp4)
+        [tcp-header tmp6] (read-tcp tmp5)]
+    [{:global-header global-header :record-header record-header :ethernet-header ethernet-header
+     :ip-header ip-header :tcp-header tcp-header} tmp1]))
 
+(defn write-struct [file structure]
+  "Writes to a file a record"
+  (map #(print-hexstring file (second %)) structure))
+
+(defn add-tcp-handshake [filename]
+  (let [[info headerless-data] (gather-data filename) ;; headerless data can be appended to the handshake
+        output (str "new-" filename)]
+    (write-struct output (:global-header info))))
 
 
 
