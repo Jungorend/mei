@@ -251,11 +251,12 @@
    :tcp-header (assoc (:tcp-header base-packet)
                  :source-port (:destination-port (:tcp-header base-packet))
                  :destination-port (:source-port (:tcp-header base-packet))
-
-
-
-
-)})
+                 :sequence-number (clojure.string/replace (format "%8x"
+                                                                  (- (Integer/parseInt (:sequence-number (:tcp-header base-packet)) 16)
+                                                                     (/ (count (packet-to-string base-packet)) 2))) " " "0")
+                 :acknowledgement-number (clojure.string/replace (format "%16x"
+                                                                         (- (Long/parseLong (:acknowledgement-number (:tcp-header base-packet)) 16)
+                                                                            (/ (count (packet-to-string base-packet)) 2))) " " "0"))})
 
 (defn packet-to-string
   "Returns packet as a string"
