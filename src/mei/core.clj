@@ -237,6 +237,39 @@
   "Writes to a file a record"
   (map #(print-hexstring file (second %)) structure))
 
+
+(defn create-new-packet [base-packet]
+  {:record-header (assoc (:record-header base-packet) :ts_sec
+                    (clojure.string/replace (format "%8x" (- (Integer/parseInt (:ts_sec (:record-header base-packet)) 16) 1)) " " "0")) ;; Updates the time to be 1 second less
+   :ethernet-header (assoc (:ethernet-header base-packet)
+                      :mac-dst (:mac-src (:ethernet-header base-packet))
+                      :mac-src (:mac-dst (:ethernet-header base-packet)))
+   :ip-header (assoc (:ip-header base-packet)
+                :identification (clojure.string/replace (format "%4x" (rand-int 65535)) " " "0")
+                :source-ip (:destination-ip (:ip-header base-packet))
+                :destination-ip (:source-ip (:ip-header base-packet)))
+   :tcp-header (assoc (:tcp-header base-packet)
+                 :source-port (:destination-port (:tcp-header base-packet))
+                 :destination-port (:source-port (:tcp-header base-packet))
+
+
+
+
+)})
+
+(defn packet-to-string
+  "Returns packet as a string"
+  [packet]
+  (apply str (map              ;; add all arrays
+               (fn [record]    ;; for each record
+                 (reduce (fn [result value] ;; add all the values in it
+                           (str result (second value))) "" (record packet)))
+               (keys packet))))
+
+
+
+;; Eventual main function
+
 (defn add-tcp-handshake [filename]
   (let [[info headerless-data] (gather-data filename) ;; headerless data can be appended to the handshake
         output (str "new-" filename)]
