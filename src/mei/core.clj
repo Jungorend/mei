@@ -233,9 +233,19 @@
     [{:global-header global-header :record-header record-header :ethernet-header ethernet-header
      :ip-header ip-header :tcp-header tcp-header} tmp1]))
 
-(defn write-struct [file structure]
-  "Writes to a file a record"
-  (map #(print-hexstring file (second %)) structure))
+(defn packet-to-string
+  "Returns packet as a string"
+  [packet]
+  (apply str (map              ;; add all arrays
+               (fn [record]    ;; for each record
+                 (reduce (fn [result value] ;; add all the values in it
+                           (str result (second value))) "" (record packet)))
+               (keys packet))))
+
+(defn record-to-string
+  "Returns a field as a string"
+  [record]
+  (apply str (map #(second %) record)))
 
 
 (defn create-new-packet [base-packet]
@@ -258,23 +268,15 @@
                                                                          (- (Long/parseLong (:acknowledgement-number (:tcp-header base-packet)) 16)
                                                                             (/ (count (packet-to-string base-packet)) 2))) " " "0"))})
 
-(defn packet-to-string
-  "Returns packet as a string"
-  [packet]
-  (apply str (map              ;; add all arrays
-               (fn [record]    ;; for each record
-                 (reduce (fn [result value] ;; add all the values in it
-                           (str result (second value))) "" (record packet)))
-               (keys packet))))
-
-
-
 ;; Eventual main function
 
 (defn add-tcp-handshake [filename]
   (let [[info headerless-data] (gather-data filename) ;; headerless data can be appended to the handshake
         output (str "new-" filename)]
-    (write-struct output (:global-header info))))
+    (print-hexstring output (record-to-string (:global-header info)))
+    (print-hexstring output (packet-to-string (create-new-packet info)))
+    ))
+
 
 
 
