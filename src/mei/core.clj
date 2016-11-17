@@ -242,6 +242,13 @@
                            (str result (second value))) "" (record packet)))
                (keys packet))))
 
+(defn endian-packet-to-string
+  "packet as a string, considering endian-ness"
+  [packet endian?]
+  (let [updated-packet (if endian? (assoc packet :record-header (reverse-endian (:record-header x)))
+                         packet)]
+    (packet-to-string updated-packet)))
+
 (defn record-to-string
   "Returns a field as a string"
   [record]
@@ -272,12 +279,13 @@
 
 (defn add-tcp-handshake [filename]
   (let [[info headerless-data] (gather-data filename) ;; headerless data can be appended to the handshake
+        new-packet1 (assoc-in (create-new-packet info) [:record-header :incl_len]
+                              (clojure.string/replace (format "%8x"
+                                                              (/ (count (packet-to-string (dissoc (create-new-packet info) :record-header))) 2))
+                                                      " " "0"))
         output (str "new-" filename)]
-    (print-hexstring output (str (record-to-string (:global-header info)) (packet-to-string (create-new-packet info))))))
-
-
-
-
+    (print-hexstring output (str (record-to-string (:global-header info))
+                                 (endian-packet-to-string new-packet1 (little-endian? (:global-header info)))))))
 
 
 
